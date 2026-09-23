@@ -1,0 +1,621 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0f1412">
+<title>Sit</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon.svg">
+<style>
+:root{
+  --bg:#0f1412;--panel:#161d1a;--panel2:#1d2622;--line:#26312c;
+  --fg:#e6e9e4;--muted:#8b968f;--accent:#9fc7a3;--accent2:#d7b98a;--danger:#d98b7a;
+  --r:14px;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+body{min-height:100vh;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom)}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:80px}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent)}
+.app{max-width:520px;margin:0 auto;padding:12px 16px 40px}
+header{display:flex;align-items:center;justify-content:space-between;padding:6px 0 14px}
+header h1{font-size:18px;font-weight:600;margin:0;letter-spacing:.02em}
+header .who{color:var(--muted);font-size:14px}
+header .who button{color:var(--muted);text-decoration:underline;padding:0 0 0 6px}
+nav{display:flex;gap:6px;background:var(--panel);padding:4px;border-radius:12px;margin-bottom:16px}
+nav button{flex:1;padding:9px;border-radius:9px;color:var(--muted);font-weight:500}
+nav button.on{background:var(--panel2);color:var(--fg)}
+.view{display:none}.view.on{display:block}
+.card{background:var(--panel);border-radius:var(--r);padding:16px;margin-bottom:12px}
+.card h2{font-size:13px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:0 0 10px;font-weight:600}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+label.small{display:block;font-size:12px;color:var(--muted);margin-bottom:4px}
+.btn{display:block;width:100%;padding:14px;border-radius:12px;background:var(--accent);color:#0f1412;font-weight:600;text-align:center;font-size:17px}
+.btn.secondary{background:var(--panel2);color:var(--fg)}
+.btn.danger{background:transparent;color:var(--danger)}
+.btn:disabled{opacity:.5}
+.muted{color:var(--muted);font-size:14px}
+.tiny{font-size:12px;color:var(--muted)}
+.hidden{display:none!important}
+
+/* timer */
+.timer{display:flex;flex-direction:column;align-items:center;padding:16px 0 6px}
+.dial{position:relative;width:250px;height:250px}
+.dial svg{transform:rotate(-90deg);width:100%;height:100%}
+.dial .track{stroke:var(--line);fill:none;stroke-width:6}
+.dial .prog{stroke:var(--accent);fill:none;stroke-width:6;stroke-linecap:round;transition:stroke-dashoffset .5s linear}
+.dial .num{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.dial .num b{font-size:52px;font-weight:300;letter-spacing:.02em;font-variant-numeric:tabular-nums}
+.dial .num span{color:var(--muted);font-size:13px;margin-top:4px;text-align:center;padding:0 30px}
+.controls{display:flex;gap:10px;width:100%;margin-top:18px}
+.controls .btn{flex:1}
+.mins{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}
+.mins button{padding:8px 12px;border-radius:999px;background:var(--panel2);color:var(--muted);font-size:14px}
+.mins button.on{background:var(--accent);color:#0f1412;font-weight:600}
+details summary{cursor:pointer;color:var(--accent2);font-size:14px;list-style:none;display:flex;justify-content:space-between}
+details summary::-webkit-details-marker{display:none}
+details summary::after{content:"+";color:var(--muted)}
+details[open] summary::after{content:"–"}
+.guide{margin-top:10px;font-size:15px}
+.guide ol{padding-left:20px;margin:8px 0}
+.guide li{margin:6px 0}
+.guide .marker{background:var(--panel2);border-left:3px solid var(--accent2);padding:8px 10px;border-radius:6px;margin-top:10px;font-size:14px}
+.goss{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.goss div{background:var(--panel2);border-radius:8px;padding:8px 6px;text-align:center;font-size:12px}
+.goss b{display:block;font-size:16px;color:var(--accent)}
+
+/* reflection */
+.scale{display:flex;gap:6px}
+.scale button{flex:1;padding:12px 0;border-radius:10px;background:var(--panel2);color:var(--muted);font-size:17px}
+.scale button.on{background:var(--accent);color:#0f1412;font-weight:600}
+.scale-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--muted);margin-top:4px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chips button{padding:7px 11px;border-radius:999px;background:var(--panel2);color:var(--muted);font-size:13px;border:1px solid transparent}
+.chips button.on{border-color:var(--accent2);color:var(--fg)}
+.chip-tip{font-size:13px;color:var(--accent2);margin-top:8px;min-height:1.2em}
+.yn{display:flex;gap:6px}
+.yn button{flex:1;padding:10px;border-radius:10px;background:var(--panel2);color:var(--muted)}
+.yn button.on{background:var(--accent2);color:#0f1412;font-weight:600}
+
+/* stats */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--panel2);border-radius:10px;padding:12px 8px;text-align:center}
+.stat b{display:block;font-size:24px;font-weight:500}
+.stat span{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.bars{display:flex;align-items:flex-end;gap:3px;height:80px;margin-top:6px}
+.bars div{flex:1;background:var(--accent);border-radius:3px 3px 0 0;min-height:2px;opacity:.85}
+.bars div.empty{background:var(--line)}
+.bars div.today{background:var(--accent2)}
+.hbar{display:flex;align-items:center;gap:8px;font-size:14px;margin:6px 0}
+.hbar span{width:150px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar i{flex:1;height:8px;background:var(--line);border-radius:4px;overflow:hidden;display:block}
+.hbar i b{display:block;height:100%;background:var(--accent2)}
+.hbar em{font-style:normal;color:var(--muted);width:28px;text-align:right;font-size:12px}
+.sit{border-top:1px solid var(--line);padding:10px 0}
+.sit:first-child{border-top:0}
+.sit .top{display:flex;justify-content:space-between;font-size:14px}
+.sit .top b{font-weight:500}
+.sit .meta{font-size:12px;color:var(--muted);margin-top:2px}
+.sit .note{font-size:14px;margin-top:6px;white-space:pre-wrap}
+.sit .del{color:var(--muted);font-size:12px;padding:0}
+svg.line{width:100%;height:70px;display:block}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--panel2);border:1px solid var(--line);padding:10px 16px;border-radius:999px;font-size:14px;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.on{opacity:1}
+.login{max-width:360px;margin:20vh auto 0;padding:0 20px;text-align:center}
+.login h1{font-weight:300;font-size:34px;margin:0 0 4px}
+.login p{color:var(--muted);margin:0 0 24px}
+</style>
+</head>
+<body>
+
+<div id="login" class="login hidden">
+  <h1>Sit</h1>
+  <p>A MIDL practice timer & log</p>
+  <input id="loginName" placeholder="your name" autocapitalize="off" autocomplete="username" spellcheck="false">
+  <p class="tiny" style="margin:8px 0 16px">No password. Same name on any device = same log.</p>
+  <button class="btn" id="loginBtn">Continue</button>
+</div>
+
+<div id="app" class="app hidden">
+  <header>
+    <h1>Sit</h1>
+    <div class="who"><span id="whoName"></span><button id="logout">switch</button></div>
+  </header>
+  <nav>
+    <button data-view="sit" class="on">Sit</button>
+    <button data-view="stats">Stats</button>
+  </nav>
+
+  <!-- SIT VIEW -->
+  <section id="view-sit" class="view on">
+    <div id="setup">
+      <div class="card">
+        <label class="small">Skill</label>
+        <select id="skill"></select>
+        <details class="guide" id="guideBox">
+          <summary>Guide</summary>
+          <div id="guide"></div>
+          <div class="goss">
+            <div><b>G</b>Ground in body</div><div><b>O</b>Observe wandering</div><div><b>S</b>Soften effort</div><div><b>S</b>Smile, enjoy</div>
+          </div>
+        </details>
+      </div>
+      <div class="card">
+        <label class="small">Minutes</label>
+        <div class="mins" id="mins"></div>
+      </div>
+      <button class="btn" id="start">Begin</button>
+      <p class="tiny" style="text-align:center;margin-top:10px">Keep the screen on for the ending bell.</p>
+    </div>
+
+    <div id="running" class="hidden">
+      <div class="timer">
+        <div class="dial">
+          <svg viewBox="0 0 100 100"><circle class="track" cx="50" cy="50" r="46"/><circle class="prog" id="prog" cx="50" cy="50" r="46"/></svg>
+          <div class="num"><b id="clock">20:00</b><span id="clockSub"></span></div>
+        </div>
+        <div class="controls">
+          <button class="btn secondary" id="pause">Pause</button>
+          <button class="btn secondary" id="finish">End</button>
+        </div>
+        <button class="btn danger" id="discard" style="margin-top:6px">Discard</button>
+      </div>
+    </div>
+
+    <div id="reflect" class="hidden">
+      <div class="card">
+        <h2>How did it go?</h2>
+        <p class="muted" id="reflectSummary"></p>
+      </div>
+      <div class="card">
+        <h2>Calm & ease</h2>
+        <div class="scale" id="calm"></div>
+        <div class="scale-labels"><span>restless</span><span>tranquil</span></div>
+      </div>
+      <div class="card">
+        <h2>Hindrances that showed up</h2>
+        <div class="chips" id="hindrances"></div>
+        <div class="chip-tip" id="chipTip"></div>
+      </div>
+      <div class="card">
+        <h2>Marker</h2>
+        <p class="muted" id="markerText" style="margin:0 0 10px"></p>
+        <div class="yn" id="marker"><button data-v="false">Not yet</button><button data-v="glimpse">Glimpsed</button><button data-v="true">Present</button></div>
+      </div>
+      <div class="card">
+        <h2>Thoughts</h2>
+        <textarea id="note" placeholder="Anything worth remembering…"></textarea>
+      </div>
+      <button class="btn" id="save">Save sit</button>
+      <button class="btn danger" id="skipReflect" style="margin-top:6px">Save without reflection</button>
+    </div>
+  </section>
+
+  <!-- STATS VIEW -->
+  <section id="view-stats" class="view">
+    <div class="card">
+      <div class="stats" id="topStats"></div>
+    </div>
+    <div class="card">
+      <h2>Last 30 days <span class="tiny" id="d30sum"></span></h2>
+      <div class="bars" id="bars"></div>
+    </div>
+    <div class="card">
+      <h2>Calm, recent sits</h2>
+      <svg class="line" id="calmLine" viewBox="0 0 300 70" preserveAspectRatio="none"></svg>
+      <div class="tiny" id="calmNote"></div>
+    </div>
+    <div class="card">
+      <h2>Hindrances, last 30 days</h2>
+      <div id="hindStats"></div>
+    </div>
+    <div class="card">
+      <h2>Marker, last 30 days</h2>
+      <div id="markerStats" class="muted"></div>
+    </div>
+    <div class="card">
+      <h2>Skills</h2>
+      <div id="skillStats"></div>
+    </div>
+    <div class="card">
+      <h2>Log</h2>
+      <div id="log"></div>
+      <button class="btn secondary" id="more" style="margin-top:10px">Show more</button>
+    </div>
+    <div class="card">
+      <div class="row">
+        <button class="btn secondary" id="export">Export JSON</button>
+        <button class="btn secondary" id="resync">Re-sync</button>
+      </div>
+      <p class="tiny" id="syncStatus" style="margin:10px 0 0"></p>
+    </div>
+  </section>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ---------- config ----------
+const SB_URL = 'https://ogzvbiezyqoofjgautvx.supabase.co';
+const SB_KEY = 'sb_publishable_tWZmdcRPQAxlAkhwoD4DZw_smmD0WSz';
+
+// ---------- MIDL content ----------
+// Condensed from midlmeditation.com (Stephen Procter's MIDL system).
+const CULTIVATIONS = {
+  1:'Mindfulness of Body', 2:'Mindfulness of Breathing', 3:'Calm & Tranquility',
+  4:'Joyfulness & Unification', 5:'Pleasure Jhāna'
+};
+const SKILLS = [
+  {id:'00',c:1,name:'Diaphragmatic Breathing',min:20,
+   steps:['Lie or sit comfortably, palms resting below the navel.','5 breaths: slowly raise and lower the abdomen.','5 more breaths, slowing the movement to deepen relaxation.','5 breaths from abdomen up into the chest (one hand on each).','Stop controlling. Let breathing happen by itself.'],
+   marker:'Natural, calming breaths happening within your belly by themselves.',
+   check:'Where am I breathing now — chest or belly?'},
+  {id:'01',c:1,name:'Body Relaxation',min:20,
+   steps:['Listen to sounds for a few minutes, then notice the touch of clothing on the body.','5 abdominal breaths: slowly extend and lower the belly.','5 whole-body breaths: belly into chest like a balloon; let shoulders, chest and upper back relax on each out-breath.','Release control. Incline the mind toward enjoying the relaxation throughout the body.','When attention wanders: GOSS.'],
+   marker:'Awareness of comfort and ease within your whole body. Sitting free of physical restlessness.',
+   check:'Is there any part of the body still holding on?'},
+  {id:'02',c:1,name:'Mind Relaxation',min:30,
+   steps:['Establish body relaxation (Skill 01).','5 breaths with slow out-breaths through the nose, letting them calm you.','5 more, letting the eyelids droop a little with each out-breath.','Let breathing normalise. Soften interest in thoughts about past and future.','Enjoy the increased relaxed awareness of the body. GOSS when needed.'],
+   marker:'Awareness of comfort and ease within your mind. Interest in past & future softens by itself.',
+   check:'How am I feeling now? Is my mind restless or inclining toward negativity?'},
+  {id:'03',c:1,name:'Mindful Presence',min:30,
+   steps:['Establish relaxation of body and mind (Skills 01–02).','Enjoy the relaxation while clearly comprehending the sensations of the body.','Notice and soften any pull toward the past or future; deepen contentment.','GOSS: Ground → Observe → Soften → Smile. Repeat as needed.','Remove sleepiness and dullness by brightening comprehension of the present moment.'],
+   marker:'A stable, mindful peripheral awareness present throughout the whole body.',
+   check:'Nothing to do, nowhere to go, no one to be. How nice is this? Is there any need to add anything?'},
+  {id:'04',c:2,name:'Content Presence',min:30,
+   steps:['Establish mindful presence in the body (Skill 03).','Turn toward the pleasantness of relaxation and let contentment grow.','Soften any wanting-more or looking-elsewhere; rest in what is already here.','Let an uplifting happiness arise from enjoying contentment.'],
+   marker:'Uplifting happiness from enjoying growing contentment with the pleasant feeling of mindful presence in the body.',
+   check:'Am I content with this moment, or looking for something more?'},
+  {id:'05',c:2,name:'Natural Breathing',min:30,
+   steps:['Rest in content presence.','Let the breath be noticed as it flows through the body, without steering it.','Each time control creeps in, soften and hand the breath back to the body.','Enjoy the ease of breathing that happens by itself.'],
+   marker:'Awareness of natural breathing flowing within your body, free from control.',
+   check:'Who is breathing right now — me, or the body?'},
+  {id:'06',c:2,name:'Whole of Each Breath',min:30,
+   steps:['Rest with natural breathing.','Know each in-breath from beginning, through middle, to end. Same for each out-breath.','When a breath is missed, no problem: GOSS and gently re-establish.','Let interest in the breath grow warm rather than tight.'],
+   marker:'Awareness of the whole of each in & out breath — beginning, middle and end.',
+   check:'Am I knowing whole breaths, or just catching pieces?'},
+  {id:'07',c:3,name:'Breath Sensations',min:35,
+   steps:['Establish whole-breath awareness.','Let attention settle where breath sensations are clearest at the tip of the nose.','Know the changing sensations within each breath there.','Keep peripheral awareness of the body relaxed and open.'],
+   marker:'Awareness of the sensations within each breath at the tip of the nose.',
+   check:'Is attention resting lightly, or pressing?'},
+  {id:'08',c:3,name:'One Point of Sensation',min:35,
+   steps:['Rest with breath sensations at the nose tip.','Allow attention to gather on a single point of sensation.','Let the perception of in and out fade by itself; do not force it.','Soften any effort that appears.'],
+   marker:'Awareness of one point of breath sensation, with the perception of in & out breaths fading.',
+   check:'Is the sense of in and out fading on its own?'},
+  {id:'09',c:3,name:'Sustained Attention',min:40,
+   steps:['Rest on the one point of sensation.','Notice subtle flickers of attention and let them calm.','Sustain unified attention by relaxing, not by holding.','Enjoy the stillness as attention stops moving.'],
+   marker:'Stable, unified attention that no longer wanders or moves.',
+   check:'Is attention still by itself, or being held still?'},
+  {id:'10',c:4,name:'Whole-Body Breathing',min:40,
+   steps:['Establish sustained attention.','Widen to peripheral awareness of the whole body as it breathes.','Know the body breathing as one experience.','Rest in the pleasantness of the whole-body breath.'],
+   marker:'Peripheral awareness of the experience of your whole body as it breathes.',
+   check:'Can the whole body be known at once, breathing?'},
+  {id:'11',c:4,name:'Sustained Awareness',min:45,
+   steps:['Rest in whole-body breathing.','Let sensory awareness calm; soften grasping at background sights, sounds and sensations.','Grow intimate, unmoving awareness of the subtle pleasant feeling of the breathing body.'],
+   marker:'Calming of sensory awareness with intimate, stable awareness of the subtle pleasant feeling of whole-body breathing.',
+   check:'Is anything still pulling at the senses?'},
+  {id:'12',c:4,name:'Access Concentration',min:45,
+   steps:['Rest in sustained awareness.','Let attention and awareness unify, free of hindrance.','Allow pleasurable bodily feeling, joy and happiness of mind to arise and stabilise.','Do nothing extra; contentment does the work.'],
+   marker:'Unified, stable, unmoving attention & awareness, free from hindrances, with pleasant bodily sensation, joy and happiness of mind.',
+   check:'Are the hindrances quiet? Is joy present without being chased?'},
+  {id:'13',c:5,name:'First Pleasure Jhāna',min:45,steps:['From access concentration, incline toward the pleasant feeling and let the mind absorb.'],marker:'First jhāna: joy, pleasure, applied & sustained attention.',check:''},
+  {id:'14',c:5,name:'Second Pleasure Jhāna',min:45,steps:['Let applied & sustained attention fall away; rest in joy and pleasure born of unification.'],marker:'Second jhāna: joy and pleasure with inner stillness.',check:''},
+  {id:'15',c:5,name:'Third Pleasure Jhāna',min:45,steps:['Let joy subside; remain equanimous, mindful, with bodily pleasure.'],marker:'Third jhāna: pleasure with equanimity and mindfulness.',check:''},
+  {id:'16',c:5,name:'Fourth Pleasure Jhāna',min:45,steps:['Let pleasure subside; rest in purified equanimity and mindfulness.'],marker:'Fourth jhāna: neither pleasure nor pain, equanimity, purity of mindfulness.',check:''},
+];
+const HINDRANCES = [
+  {id:'stress_breathing',name:'Stress breathing',tip:'Short chest breathing. Return to soft belly breathing.'},
+  {id:'phys_restless',name:'Physical restlessness',tip:'Soft, gentle breathing; let the body settle.'},
+  {id:'mental_restless',name:'Mental restlessness',tip:'Withdraw energy by softening interest in the mind\'s engagement.'},
+  {id:'sleepy',name:'Sleepiness',tip:'Brighten clear comprehension of what is present.'},
+  {id:'forgetting',name:'Forgetting',tip:'Losing the object. Retrain gently, repeatedly.'},
+  {id:'control',name:'Habitual control',tip:'Interfering with the breath. Learn to let go — you are halfway there.'},
+  {id:'wandering',name:'Mind wandering',tip:'Seeking entertainment. Remove dullness first, then shorten the wandering.'},
+  {id:'gross_dull',name:'Gross dullness',tip:'Loss of clarity. Refine relaxing while keeping clear comprehension.'},
+  {id:'subtle_dull',name:'Subtle dullness',tip:'Object goes vague. Keep sensory perception vivid while staying relaxed.'},
+  {id:'subtle_wander',name:'Subtle wandering',tip:'Flickers of attention. Allow them to calm as samādhi deepens.'},
+  {id:'sensory',name:'Sensory stimulation',tip:'Grasping background sensation. Release the subtle grasping.'},
+  {id:'anticipation',name:'Anticipation',tip:'Excitement about bliss. Grow contentment instead.'},
+  {id:'fear',name:'Fear of letting go',tip:'Grow trust in the practice, the teacher, the community.'},
+  {id:'doubt',name:'Doubt',tip:'Build verified confidence through small successes.'},
+];
+const SKILL_BY = Object.fromEntries(SKILLS.map(s=>[s.id,s]));
+const HIND_BY = Object.fromEntries(HINDRANCES.map(h=>[h.id,h]));
+const MINUTE_OPTS = [5,10,15,20,25,30,35,40,45,60];
+
+// ---------- state ----------
+const $ = s=>document.querySelector(s);
+let user = null, profile = {current_skill:'01', default_minutes:20}, sits = [];
+let timer = null; // {plannedSec, endsAt, remainingAtPause, paused, startedAt, skill}
+let reflection = {calm:null, hind:new Set(), marker:null};
+let logShown = 15;
+
+const lsKey = k=>`sit:${user}:${k}`;
+const loadLocal = ()=>{
+  try{ sits = JSON.parse(localStorage.getItem(lsKey('sits'))||'[]'); }catch{ sits=[]; }
+  try{ profile = Object.assign(profile, JSON.parse(localStorage.getItem(lsKey('profile'))||'{}')); }catch{}
+};
+const saveLocal = ()=>{
+  try{ localStorage.setItem(lsKey('sits'), JSON.stringify(sits)); localStorage.setItem(lsKey('profile'), JSON.stringify(profile)); }catch{}
+};
+
+// ---------- supabase (REST) ----------
+const sb = async (path, opts={})=>{
+  const r = await fetch(`${SB_URL}/rest/v1/${path}`, {
+    ...opts,
+    headers:{apikey:SB_KEY, Authorization:`Bearer ${SB_KEY}`, 'Content-Type':'application/json', Prefer:opts.prefer||'return=representation', ...(opts.headers||{})}
+  });
+  if(!r.ok) throw new Error(`${r.status} ${await r.text()}`);
+  const t = await r.text(); return t? JSON.parse(t): null;
+};
+const dbCols = 'id,username,started_at,duration_sec,planned_sec,skill,calm,hindrances,marker,note';
+const toRow = s=>({id:s.id,username:user,started_at:s.started_at,duration_sec:s.duration_sec,planned_sec:s.planned_sec,skill:s.skill,calm:s.calm,hindrances:s.hindrances||[],marker:s.marker,note:s.note||null});
+
+async function syncDown(){
+  const st = $('#syncStatus');
+  try{
+    const p = await sb(`profiles?username=eq.${encodeURIComponent(user)}&select=*`);
+    if(p.length){ profile = {...profile, current_skill:p[0].current_skill, default_minutes:p[0].default_minutes}; }
+    else await sb('profiles', {method:'POST', body:JSON.stringify({username:user, ...profile}), prefer:'return=minimal'});
+    // push anything pending first
+    const pending = sits.filter(s=>s._pending);
+    for(const s of pending){ try{ await pushSit(s); }catch{} }
+    const deleted = JSON.parse(localStorage.getItem(lsKey('deleted'))||'[]');
+    for(const id of [...deleted]){ try{ await sb(`sits?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); deleted.splice(deleted.indexOf(id),1);}catch{} }
+    localStorage.setItem(lsKey('deleted'), JSON.stringify(deleted));
+    const rows = await sb(`sits?username=eq.${encodeURIComponent(user)}&select=${dbCols}&order=started_at.desc`);
+    const stillPending = sits.filter(s=>s._pending && !rows.find(r=>r.id===s.id));
+    sits = [...stillPending, ...rows].sort((a,b)=>b.started_at.localeCompare(a.started_at));
+    saveLocal();
+    st.textContent = `Synced ${new Date().toLocaleTimeString()} · ${sits.length} sits`;
+  }catch(e){
+    st.textContent = `Offline — using this device's copy. (${e.message.slice(0,60)})`;
+  }
+}
+async function pushSit(s){
+  await sb('sits',{method:'POST', body:JSON.stringify(toRow(s)), prefer:'resolution=merge-duplicates,return=minimal', headers:{}});
+  delete s._pending; saveLocal();
+}
+async function pushProfile(){
+  saveLocal();
+  try{ await sb(`profiles?username=eq.${encodeURIComponent(user)}`,{method:'PATCH', body:JSON.stringify({current_skill:profile.current_skill, default_minutes:profile.default_minutes, updated_at:new Date().toISOString()}), prefer:'return=minimal'}); }catch{}
+}
+
+// ---------- login ----------
+function showLogin(){ $('#login').classList.remove('hidden'); $('#app').classList.add('hidden'); $('#loginName').focus(); }
+async function login(name){
+  name = (name||'').trim().toLowerCase().replace(/[^a-z0-9_\-\.]/g,'');
+  if(!name) return;
+  user = name; localStorage.setItem('sit:user', user);
+  loadLocal();
+  $('#whoName').textContent = user;
+  $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
+  renderSetup(); renderStats();
+  await syncDown();
+  renderSetup(); renderStats();
+}
+$('#loginBtn').onclick = ()=>login($('#loginName').value);
+$('#loginName').addEventListener('keydown',e=>{ if(e.key==='Enter') login(e.target.value); });
+$('#logout').onclick = ()=>{ localStorage.removeItem('sit:user'); user=null; sits=[]; showLogin(); };
+
+// ---------- nav ----------
+document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
+  document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='view-'+b.dataset.view));
+  if(b.dataset.view==='stats') renderStats();
+});
+
+// ---------- setup ----------
+function renderSetup(){
+  const sel = $('#skill');
+  sel.innerHTML = SKILLS.map(s=>`<option value="${s.id}">${s.id} · ${s.name} — ${CULTIVATIONS[s.c]}</option>`).join('');
+  sel.value = profile.current_skill;
+  renderGuide();
+  $('#mins').innerHTML = MINUTE_OPTS.map(m=>`<button data-m="${m}" class="${m===profile.default_minutes?'on':''}">${m}</button>`).join('');
+}
+function renderGuide(){
+  const s = SKILL_BY[$('#skill').value];
+  $('#guide').innerHTML = `<ol>${s.steps.map(x=>`<li>${x}</li>`).join('')}</ol>
+    <div class="marker"><b>Marker ${s.id}:</b> ${s.marker}</div>
+    ${s.check?`<p class="tiny" style="margin:8px 0 0">Ask: <i>${s.check}</i></p>`:''}`;
+}
+$('#skill').onchange = e=>{ profile.current_skill = e.target.value; renderGuide(); pushProfile(); };
+$('#mins').onclick = e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  profile.default_minutes = +b.dataset.m;
+  $('#mins').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));
+  pushProfile();
+};
+
+// ---------- bell ----------
+let actx = null;
+function bell(times=1){
+  try{
+    actx = actx || new (window.AudioContext||window.webkitAudioContext)();
+    if(actx.state==='suspended') actx.resume();
+    for(let i=0;i<times;i++){
+      const t0 = actx.currentTime + i*2.2;
+      [1,2.01,3.02].forEach((mult,j)=>{
+        const o = actx.createOscillator(), g = actx.createGain();
+        o.type='sine'; o.frequency.value = 528*mult;
+        g.gain.setValueAtTime(0.0001,t0);
+        g.gain.exponentialRampToValueAtTime(0.5/(j+1),t0+0.02);
+        g.gain.exponentialRampToValueAtTime(0.0001,t0+4-j);
+        o.connect(g).connect(actx.destination); o.start(t0); o.stop(t0+4);
+      });
+    }
+  }catch{}
+}
+
+// ---------- timer ----------
+let wakeLock = null;
+async function keepAwake(){ try{ wakeLock = await navigator.wakeLock?.request('screen'); }catch{} }
+function releaseWake(){ try{ wakeLock?.release(); }catch{} wakeLock=null; }
+
+const fmt = s=>{ s=Math.max(0,Math.round(s)); return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`; };
+const CIRC = 2*Math.PI*46;
+
+$('#start').onclick = ()=>{
+  const plannedSec = profile.default_minutes*60;
+  timer = {plannedSec, startedAt:new Date().toISOString(), endsAt:Date.now()+plannedSec*1000, paused:false, skill:profile.current_skill, done:false};
+  $('#setup').classList.add('hidden'); $('#running').classList.remove('hidden');
+  $('#clockSub').textContent = SKILL_BY[timer.skill].name;
+  $('#prog').style.strokeDasharray = CIRC;
+  bell(1); keepAwake(); tick();
+  timer.iv = setInterval(tick, 250);
+};
+function remaining(){ return timer.paused ? timer.remainingAtPause : (timer.endsAt-Date.now())/1000; }
+function tick(){
+  if(!timer) return;
+  const r = remaining();
+  $('#clock').textContent = fmt(r);
+  $('#prog').style.strokeDashoffset = CIRC*(1-Math.max(0,r)/timer.plannedSec);
+  if(r<=0 && !timer.done){ timer.done=true; bell(3); $('#clockSub').textContent='Take a moment, then reflect'; $('#pause').disabled=true; }
+}
+$('#pause').onclick = ()=>{
+  if(timer.paused){ timer.endsAt = Date.now()+timer.remainingAtPause*1000; timer.paused=false; $('#pause').textContent='Pause'; }
+  else { timer.remainingAtPause = remaining(); timer.paused=true; $('#pause').textContent='Resume'; }
+};
+$('#finish').onclick = ()=>endSit();
+$('#discard').onclick = ()=>{ if(confirm('Discard this sit?')) resetTimer(); };
+document.addEventListener('visibilitychange',()=>{ if(!document.hidden && timer){ tick(); keepAwake(); } });
+
+function elapsedSec(){ return Math.round(timer.plannedSec - Math.max(0,remaining())); }
+function endSit(){
+  clearInterval(timer.iv); releaseWake();
+  timer.duration_sec = Math.max(1, elapsedSec());
+  $('#running').classList.add('hidden'); $('#reflect').classList.remove('hidden');
+  reflection = {calm:null, hind:new Set(), marker:null};
+  const s = SKILL_BY[timer.skill];
+  $('#reflectSummary').textContent = `${fmt(timer.duration_sec)} · ${s.id} ${s.name}`;
+  $('#markerText').textContent = s.marker;
+  $('#calm').innerHTML = [1,2,3,4,5].map(n=>`<button data-v="${n}">${n}</button>`).join('');
+  $('#hindrances').innerHTML = HINDRANCES.map(h=>`<button data-v="${h.id}">${h.name}</button>`).join('');
+  $('#chipTip').textContent=''; $('#note').value='';
+  $('#marker').querySelectorAll('button').forEach(b=>b.classList.remove('on'));
+  $('#pause').disabled=false; $('#pause').textContent='Pause';
+  window.scrollTo(0,0);
+}
+function resetTimer(){ if(timer?.iv) clearInterval(timer.iv); releaseWake(); timer=null; $('#running').classList.add('hidden'); $('#reflect').classList.add('hidden'); $('#setup').classList.remove('hidden'); }
+
+$('#calm').onclick = e=>{ const b=e.target.closest('button'); if(!b) return; reflection.calm=+b.dataset.v; $('#calm').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); };
+$('#hindrances').onclick = e=>{ const b=e.target.closest('button'); if(!b) return; const id=b.dataset.v;
+  if(reflection.hind.has(id)) reflection.hind.delete(id); else reflection.hind.add(id);
+  b.classList.toggle('on'); $('#chipTip').textContent = reflection.hind.has(id)? HIND_BY[id].tip : ''; };
+$('#marker').onclick = e=>{ const b=e.target.closest('button'); if(!b) return; reflection.marker=b.dataset.v; $('#marker').querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b)); };
+
+async function saveSit(withReflection){
+  const s = {
+    id: crypto.randomUUID ? crypto.randomUUID() : String(Date.now())+Math.random().toString(16).slice(2),
+    started_at: timer.startedAt, duration_sec: timer.duration_sec, planned_sec: timer.plannedSec, skill: timer.skill,
+    calm: withReflection? reflection.calm : null,
+    hindrances: withReflection? [...reflection.hind] : [],
+    marker: withReflection? (reflection.marker==='true'? true : reflection.marker==='false'? false : null) : null,
+    note: withReflection? ($('#note').value.trim() + (reflection.marker==='glimpse'? (($('#note').value.trim()?'\n':'')+'[marker glimpsed]') : '')) : '',
+    _pending:true
+  };
+  sits.unshift(s); saveLocal();
+  resetTimer(); toast('Saved');
+  try{ await pushSit(s); }catch(e){ toast('Saved locally · will sync later'); }
+  renderStats();
+}
+$('#save').onclick = ()=>saveSit(true);
+$('#skipReflect').onclick = ()=>saveSit(false);
+
+// ---------- stats ----------
+const dayKey = d=>{ d=new Date(d); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
+function streaks(){
+  const days = new Set(sits.map(s=>dayKey(s.started_at)));
+  let cur=0, d=new Date(); if(!days.has(dayKey(d))) d.setDate(d.getDate()-1);
+  while(days.has(dayKey(d))){ cur++; d.setDate(d.getDate()-1); }
+  const sorted=[...days].sort(); let best=0,run=0,prev=null;
+  for(const k of sorted){ const t=new Date(k+'T00:00:00'); run = (prev && (t-prev)===86400000)? run+1 : 1; best=Math.max(best,run); prev=t; }
+  return {cur,best};
+}
+function renderStats(){
+  if(!user) return;
+  const total = sits.length, mins = Math.round(sits.reduce((a,s)=>a+s.duration_sec,0)/60);
+  const {cur,best} = streaks();
+  const now = Date.now(), d30 = sits.filter(s=>now-new Date(s.started_at)<30*86400000);
+  const d7 = sits.filter(s=>now-new Date(s.started_at)<7*86400000);
+  $('#topStats').innerHTML = [
+    [total,'sits'],[mins>=600?Math.round(mins/60)+'h':mins,mins>=600?'total':'minutes'],[cur,'day streak'],
+    [d7.length,'last 7 days'],[Math.round(d30.reduce((a,s)=>a+s.duration_sec,0)/60),'min / 30d'],[best,'best streak']
+  ].map(([v,l])=>`<div class="stat"><b>${v}</b><span>${l}</span></div>`).join('');
+
+  // 30-day bars
+  const byDay = {}; d30.forEach(s=>{ const k=dayKey(s.started_at); byDay[k]=(byDay[k]||0)+s.duration_sec/60; });
+  const max = Math.max(1,...Object.values(byDay)); let html='';
+  for(let i=29;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const k=dayKey(d), v=byDay[k]||0;
+    html+=`<div class="${v?'':'empty'} ${i===0?'today':''}" style="height:${Math.max(2,v/max*100)}%" title="${k}: ${Math.round(v)} min"></div>`; }
+  $('#bars').innerHTML = html;
+  $('#d30sum').textContent = `· ${Object.keys(byDay).length} of 30 days`;
+
+  // calm line
+  const rated = sits.filter(s=>s.calm).slice(0,20).reverse();
+  const svg = $('#calmLine');
+  if(rated.length<2){ svg.innerHTML=''; $('#calmNote').textContent='Rate a few sits to see a trend.'; }
+  else{
+    const pts = rated.map((s,i)=>[i/(rated.length-1)*290+5, 65-(s.calm-1)/4*58]);
+    svg.innerHTML = [1,2,3,4,5].map(n=>`<line x1="0" x2="300" y1="${65-(n-1)/4*58}" y2="${65-(n-1)/4*58}" stroke="#26312c" stroke-width="1"/>`).join('') +
+      `<polyline fill="none" stroke="#9fc7a3" stroke-width="2" points="${pts.map(p=>p.join(',')).join(' ')}"/>` +
+      pts.map(p=>`<circle cx="${p[0]}" cy="${p[1]}" r="2.5" fill="#9fc7a3"/>`).join('');
+    const avg = (rated.reduce((a,s)=>a+s.calm,0)/rated.length).toFixed(1);
+    $('#calmNote').textContent = `Last ${rated.length} rated sits · avg ${avg} / 5`;
+  }
+
+  // hindrances
+  const hc = {}; d30.forEach(s=>(s.hindrances||[]).forEach(h=>hc[h]=(hc[h]||0)+1));
+  const hs = Object.entries(hc).sort((a,b)=>b[1]-a[1]);
+  $('#hindStats').innerHTML = hs.length? hs.map(([h,n])=>`<div class="hbar"><span>${HIND_BY[h]?.name||h}</span><i><b style="width:${n/hs[0][1]*100}%"></b></i><em>${n}</em></div>`).join('') : '<p class="muted" style="margin:0">None logged.</p>';
+
+  // marker
+  const m = d30.filter(s=>s.marker!==null && s.marker!==undefined);
+  const mt = m.filter(s=>s.marker===true).length, mg = d30.filter(s=>(s.note||'').includes('[marker glimpsed]')).length;
+  $('#markerStats').textContent = m.length||mg? `${mt} present · ${mg} glimpsed · ${m.length-mt} not yet, of ${d30.length} sits` : 'Nothing logged yet.';
+
+  // skills
+  const sc = {}; sits.forEach(s=>{ sc[s.skill]=sc[s.skill]||{n:0,sec:0}; sc[s.skill].n++; sc[s.skill].sec+=s.duration_sec; });
+  const ss = Object.entries(sc).sort((a,b)=>a[0].localeCompare(b[0]));
+  $('#skillStats').innerHTML = ss.length? ss.map(([k,v])=>`<div class="hbar"><span>${k} ${SKILL_BY[k]?.name||''}</span><i><b style="width:${v.sec/Math.max(...ss.map(x=>x[1].sec))*100}%"></b></i><em>${v.n}</em></div>`).join('') : '<p class="muted" style="margin:0">No sits yet.</p>';
+
+  renderLog();
+}
+function renderLog(){
+  const rows = sits.slice(0,logShown);
+  $('#log').innerHTML = rows.length? rows.map(s=>{
+    const d = new Date(s.started_at); const sk = SKILL_BY[s.skill];
+    const meta = [ s.calm?`calm ${s.calm}/5`:null, s.marker===true?'marker ✓':null, ...(s.hindrances||[]).map(h=>HIND_BY[h]?.name||h) ].filter(Boolean).join(' · ');
+    return `<div class="sit"><div class="top"><b>${fmt(s.duration_sec)} · ${s.skill} ${sk?.name||''}</b><span class="muted">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}${s._pending?' ⏳':''}</span></div>
+      ${meta?`<div class="meta">${meta}</div>`:''}${s.note?`<div class="note">${esc(s.note)}</div>`:''}
+      <button class="del" data-id="${s.id}">delete</button></div>`; }).join('') : '<p class="muted" style="margin:0">Your sits will appear here.</p>';
+  $('#more').classList.toggle('hidden', sits.length<=logShown);
+}
+const esc = s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+$('#more').onclick = ()=>{ logShown+=25; renderLog(); };
+$('#log').onclick = async e=>{
+  const b = e.target.closest('.del'); if(!b || !confirm('Delete this sit?')) return;
+  const id = b.dataset.id; sits = sits.filter(s=>s.id!==id); saveLocal(); renderStats();
+  try{ await sb(`sits?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); }
+  catch{ const d=JSON.parse(localStorage.getItem(lsKey('deleted'))||'[]'); d.push(id); localStorage.setItem(lsKey('deleted'),JSON.stringify(d)); }
+};
+$('#export').onclick = ()=>{
+  const blob = new Blob([JSON.stringify({user, profile, sits},null,2)],{type:'application/json'});
+  const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`sits-${user}-${dayKey(new Date())}.json`; a.click();
+};
+$('#resync').onclick = async()=>{ await syncDown(); renderSetup(); renderStats(); toast('Synced'); };
+
+let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1800); }
+
+// ---------- boot ----------
+const saved = localStorage.getItem('sit:user');
+if(saved) login(saved); else showLogin();
+</script>
+</body>
+</html>
