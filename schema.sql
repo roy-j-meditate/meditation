@@ -29,3 +29,6 @@ drop policy if exists "anon all profiles" on profiles;
 create policy "anon all profiles" on profiles for all to anon using (true) with check (true);
 drop policy if exists "anon all sits" on sits;
 create policy "anon all sits" on sits for all to anon using (true) with check (true);
+
+-- lifetime totals from before this app (added to stats)
+alter table profiles add column if not exists prior_sits int not null default 0, add column if not exists prior_minutes int not null default 0;

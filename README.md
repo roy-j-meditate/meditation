@@ -5,6 +5,7 @@ A minimal MIDL meditation timer + log. Static page (GitHub Pages) backed by Supa
 - Pick a MIDL skill (00–16), a duration, sit. Bell at start and end.
 - Short reflection after each sit: calm 1–5, hindrances, marker, a note.
 - Stats: streaks, 30-day minutes, calm trend, hindrance frequency, per-skill totals, full log.
+- "Before this app" in Stats: enter lifetime sits/minutes from elsewhere; they're added to the totals.
 - Login is a username only. Same name on any device = same log. Nothing is private.
 
 ## Supabase
