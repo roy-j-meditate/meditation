@@ -110,13 +110,39 @@ svg.line{width:100%;height:70px;display:block}
 .login{max-width:360px;margin:20vh auto 0;padding:0 20px;text-align:center}
 .login h1{font-weight:300;font-size:34px;margin:0 0 4px}
 .login p{color:var(--muted);margin:0 0 24px}
+
+/* today */
+.starrow{display:flex;align-items:center;justify-content:space-between;margin:2px 0}
+.starrow>span{color:var(--muted);font-size:15px}
+.stars{display:flex}
+.stars button{font-size:30px;line-height:1;padding:2px 3px;color:var(--line)}
+.stars button.on{color:var(--accent2)}
+.stars.anx button.on{color:var(--danger)}
+.picks{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
+.picks button{padding:12px 4px;border-radius:10px;background:var(--panel2);font-weight:500;font-size:15px;border:1px solid transparent}
+.picks button.on{border-color:var(--accent)}
+.field{margin-top:12px}
+.habit .hhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px}
+.habit .hhead b{font-weight:600}
+.heat{display:block}
+.tod{width:100%;height:16px;display:block;margin-top:10px}
+.todlab{display:flex;justify-content:space-between;font-size:10px;color:var(--muted)}
+table.grid{width:100%;border-collapse:collapse;font-size:13px}
+table.grid th{font-weight:500;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.04em;padding:4px 2px}
+table.grid td{text-align:center;padding:5px 2px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+table.grid td:first-child,table.grid th:first-child{text-align:left}
+.corr td b{display:block;font-size:16px;font-weight:500}
+.corr td small{font-size:11px;color:var(--muted)}
+.corr .weak{opacity:.4}
+.legend{display:flex;gap:14px;font-size:12px;color:var(--muted);margin-top:6px}
+.legend i{display:inline-block;width:10px;height:3px;border-radius:2px;vertical-align:middle;margin-right:5px}
 </style>
 </head>
 <body>
 
 <div id="login" class="login hidden">
   <h1>Sit</h1>
-  <p>A MIDL practice timer & log</p>
+  <p>Habits, check-ins & a MIDL timer</p>
   <input id="loginName" placeholder="your name" autocapitalize="off" autocomplete="username" spellcheck="false">
   <p class="tiny" style="margin:8px 0 16px">No password. Same name on any device = same log.</p>
   <button class="btn" id="loginBtn">Continue</button>
@@ -128,12 +154,51 @@ svg.line{width:100%;height:70px;display:block}
     <div class="who"><span id="whoName"></span><button id="logout">switch</button></div>
   </header>
   <nav>
-    <button data-view="sit" class="on">Sit</button>
-    <button data-view="stats">Stats</button>
+    <button data-view="today" class="on">Today</button>
+    <button data-view="sit">Sit</button>
+    <button data-view="trends">Trends</button>
+    <button data-view="stats">Sits</button>
   </nav>
 
+  <!-- TODAY VIEW -->
+  <section id="view-today" class="view on">
+    <div class="card">
+      <h2>Check in <span class="tiny" id="lastCheckin" style="text-transform:none;letter-spacing:0"></span></h2>
+      <div class="starrow"><span>Anxiety</span><div class="stars anx" data-k="anxiety"></div></div>
+      <div class="starrow"><span>Happiness</span><div class="stars" data-k="happiness"></div></div>
+      <button class="btn" id="ciSave" style="margin-top:10px">Check in</button>
+    </div>
+    <div class="card">
+      <h2>Log</h2>
+      <div class="picks" id="logPick"></div>
+      <div id="logForm" class="hidden"></div>
+    </div>
+    <div id="habitCards"></div>
+    <div class="card">
+      <h2>Recent</h2>
+      <div id="recent"></div>
+    </div>
+  </section>
+
+  <!-- TRENDS VIEW -->
+  <section id="view-trends" class="view">
+    <div class="card">
+      <h2>Check-ins, last 60 days</h2>
+      <svg class="line" id="ciLine" viewBox="0 0 300 90" preserveAspectRatio="none" style="height:90px"></svg>
+      <div class="legend"><span><i style="background:var(--danger)"></i>anxiety</span><span><i style="background:var(--accent)"></i>happiness</span><span id="ciCount"></span></div>
+    </div>
+    <div class="card">
+      <h2>Days per week</h2>
+      <div id="weekly"></div>
+    </div>
+    <div class="card">
+      <h2>What goes with how you feel</h2>
+      <div id="corr"></div>
+    </div>
+  </section>
+
   <!-- SIT VIEW -->
-  <section id="view-sit" class="view on">
+  <section id="view-sit" class="view">
     <div id="setup">
       <div class="card">
         <label class="small">Skill</label>
@@ -342,7 +407,7 @@ const MINUTE_OPTS = [5,10,15,20,25,30,35,40,45,60];
 
 // ---------- state ----------
 const $ = s=>document.querySelector(s);
-let user = null, profile = {current_skill:'01', default_minutes:20, prior_sits:0, prior_minutes:0}, sits = [];
+let user = null, profile = {current_skill:'01', default_minutes:20, prior_sits:0, prior_minutes:0}, sits = [], entries = [];
 let timer = null; // {plannedSec, endsAt, remainingAtPause, paused, startedAt, skill}
 let reflection = {calm:null, hind:new Set(), marker:null};
 let logShown = 15;
@@ -350,10 +415,11 @@ let logShown = 15;
 const lsKey = k=>`sit:${user}:${k}`;
 const loadLocal = ()=>{
   try{ sits = JSON.parse(localStorage.getItem(lsKey('sits'))||'[]'); }catch{ sits=[]; }
+  try{ entries = JSON.parse(localStorage.getItem(lsKey('entries'))||'[]'); }catch{ entries=[]; }
   try{ profile = Object.assign(profile, JSON.parse(localStorage.getItem(lsKey('profile'))||'{}')); }catch{}
 };
 const saveLocal = ()=>{
-  try{ localStorage.setItem(lsKey('sits'), JSON.stringify(sits)); localStorage.setItem(lsKey('profile'), JSON.stringify(profile)); }catch{}
+  try{ localStorage.setItem(lsKey('sits'), JSON.stringify(sits)); localStorage.setItem(lsKey('entries'), JSON.stringify(entries)); localStorage.setItem(lsKey('profile'), JSON.stringify(profile)); }catch{}
 };
 
 // ---------- supabase (REST) ----------
@@ -380,14 +446,41 @@ async function syncDown(){
     const deleted = JSON.parse(localStorage.getItem(lsKey('deleted'))||'[]');
     for(const id of [...deleted]){ try{ await sb(`sits?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); deleted.splice(deleted.indexOf(id),1);}catch{} }
     localStorage.setItem(lsKey('deleted'), JSON.stringify(deleted));
-    const rows = await sb(`sits?username=eq.${encodeURIComponent(user)}&select=${dbCols}&order=started_at.desc`);
+    const rows = await sbAll(`sits?username=eq.${encodeURIComponent(user)}&select=${dbCols}&order=started_at.desc`);
     const stillPending = sits.filter(s=>s._pending && !rows.find(r=>r.id===s.id));
     sits = [...stillPending, ...rows].sort((a,b)=>b.started_at.localeCompare(a.started_at));
     saveLocal();
     st.textContent = `Synced ${new Date().toLocaleTimeString()} · ${sits.length} sits`;
   }catch(e){
     st.textContent = `Offline — using this device's copy. (${e.message.slice(0,60)})`;
+    return;
   }
+  try{ await syncEntries(); st.textContent += ` · ${entries.length} entries`; }
+  catch(e){ st.textContent += ` · entries not synced (${e.message.slice(0,60)})`; }
+}
+// PostgREST caps responses (1000 rows by default), so page through.
+async function sbAll(path){
+  const out = [];
+  for(let off=0;;off+=1000){
+    const rows = await sb(`${path}&limit=1000&offset=${off}`);
+    out.push(...rows); if(rows.length<1000) return out;
+  }
+}
+const entryCols = 'id,username,kind,at,duration_sec,data';
+const toEntryRow = e=>({id:e.id,username:user,kind:e.kind,at:e.at,duration_sec:e.duration_sec??null,data:e.data||{}});
+async function syncEntries(){
+  for(const e of entries.filter(e=>e._pending)){ try{ await pushEntry(e); }catch{} }
+  const deleted = JSON.parse(localStorage.getItem(lsKey('deletedEntries'))||'[]');
+  for(const id of [...deleted]){ try{ await sb(`entries?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); deleted.splice(deleted.indexOf(id),1);}catch{} }
+  localStorage.setItem(lsKey('deletedEntries'), JSON.stringify(deleted));
+  const rows = await sbAll(`entries?username=eq.${encodeURIComponent(user)}&select=${entryCols}&order=at.desc`);
+  const stillPending = entries.filter(e=>e._pending && !rows.find(r=>r.id===e.id));
+  entries = [...stillPending, ...rows].sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+  saveLocal();
+}
+async function pushEntry(e){
+  await sb('entries',{method:'POST', body:JSON.stringify(toEntryRow(e)), prefer:'resolution=merge-duplicates,return=minimal'});
+  delete e._pending; saveLocal();
 }
 async function pushSit(s){
   await sb('sits',{method:'POST', body:JSON.stringify(toRow(s)), prefer:'resolution=merge-duplicates,return=minimal', headers:{}});
@@ -411,19 +504,21 @@ async function login(name){
   loadLocal();
   $('#whoName').textContent = user;
   $('#login').classList.add('hidden'); $('#app').classList.remove('hidden');
-  renderSetup(); renderStats();
+  renderSetup(); renderStats(); renderToday();
   await syncDown();
-  renderSetup(); renderStats();
+  renderSetup(); renderStats(); renderToday(); renderTrends();
 }
 $('#loginBtn').onclick = ()=>login($('#loginName').value);
 $('#loginName').addEventListener('keydown',e=>{ if(e.key==='Enter') login(e.target.value); });
-$('#logout').onclick = ()=>{ localStorage.removeItem('sit:user'); user=null; sits=[]; showLogin(); };
+$('#logout').onclick = ()=>{ localStorage.removeItem('sit:user'); user=null; sits=[]; entries=[]; showLogin(); };
 
 // ---------- nav ----------
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x===b));
   document.querySelectorAll('.view').forEach(v=>v.classList.toggle('on',v.id==='view-'+b.dataset.view));
   if(b.dataset.view==='stats') renderStats();
+  if(b.dataset.view==='today') renderToday();
+  if(b.dataset.view==='trends') renderTrends();
 });
 
 // ---------- setup ----------
@@ -554,15 +649,15 @@ async function saveSit(withReflection){
   sits.unshift(s); saveLocal();
   resetTimer(); toast('Saved');
   try{ await pushSit(s); }catch(e){ toast('Saved locally · will sync later'); }
-  renderStats();
+  renderStats(); renderToday();
 }
 $('#save').onclick = ()=>saveSit(true);
 $('#skipReflect').onclick = ()=>saveSit(false);
 
 // ---------- stats ----------
 const dayKey = d=>{ d=new Date(d); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; };
-function streaks(){
-  const days = new Set(sits.map(s=>dayKey(s.started_at)));
+function streaks(){ return streakOf(new Set(sits.map(s=>dayKey(s.started_at)))); }
+function streakOf(days){
   let cur=0, d=new Date(); if(!days.has(dayKey(d))) d.setDate(d.getDate()-1);
   while(days.has(dayKey(d))){ cur++; d.setDate(d.getDate()-1); }
   const sorted=[...days].sort(); let best=0,run=0,prev=null;
@@ -629,7 +724,7 @@ function renderLog(){
       <button class="del" data-id="${s.id}">delete</button></div>`; }).join('') : '<p class="muted" style="margin:0">Your sits will appear here.</p>';
   $('#more').classList.toggle('hidden', sits.length<=logShown);
 }
-const esc = s=>s.replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+const esc = s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 $('#more').onclick = ()=>{ logShown+=25; renderLog(); };
 $('#log').onclick = async e=>{
   const b = e.target.closest('.del'); if(!b || !confirm('Delete this sit?')) return;
@@ -638,14 +733,286 @@ $('#log').onclick = async e=>{
   catch{ const d=JSON.parse(localStorage.getItem(lsKey('deleted'))||'[]'); d.push(id); localStorage.setItem(lsKey('deleted'),JSON.stringify(d)); }
 };
 $('#export').onclick = ()=>{
-  const blob = new Blob([JSON.stringify({user, profile, sits},null,2)],{type:'application/json'});
+  const blob = new Blob([JSON.stringify({user, profile, sits, entries},null,2)],{type:'application/json'});
   const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=`sits-${user}-${dayKey(new Date())}.json`; a.click();
 };
 ['priorSits','priorMinutes'].forEach(id=>$('#'+id).onchange = e=>{
   profile[id==='priorSits'?'prior_sits':'prior_minutes'] = Math.max(0, parseInt(e.target.value)||0);
   pushProfile(); renderStats(); toast('Saved');
 });
-$('#resync').onclick = async()=>{ await syncDown(); renderSetup(); renderStats(); toast('Synced'); };
+$('#resync').onclick = async()=>{ await syncDown(); renderSetup(); renderStats(); renderToday(); toast('Synced'); };
+
+// ---------- habits ----------
+const HABITS = [
+  {id:'meditate', name:'Meditate', color:'#9fc7a3'},
+  {id:'exercise', name:'Exercise', color:'#d7b98a'},
+  {id:'walk', name:'Walk', color:'#8fb5d6'},
+  {id:'read', name:'Read', color:'#c3a6d6'},
+];
+const HABIT_BY = Object.fromEntries(HABITS.map(h=>[h.id,h]));
+const EX_TYPES = ['run','bike','lift','tennis','swim','other'];
+const CARDIO = ['run','bike','swim','other'];
+const DAY = 86400000;
+const cap = s=>s[0].toUpperCase()+s.slice(1);
+const uid = ()=>{
+  if(crypto.randomUUID) return crypto.randomUUID();
+  const b = crypto.getRandomValues(new Uint8Array(16)); b[6]=b[6]&15|64; b[8]=b[8]&63|128;
+  const h = [...b].map(x=>x.toString(16).padStart(2,'0')).join('');
+  return `${h.slice(0,8)}-${h.slice(8,12)}-${h.slice(12,16)}-${h.slice(16,20)}-${h.slice(20)}`;
+};
+const localInput = d=>`${dayKey(d)}T${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+const mean = a=>a.length? a.reduce((x,y)=>x+y,0)/a.length : null;
+function pearson(xs, ys){
+  const n=xs.length; if(n<3) return null;
+  const mx=mean(xs), my=mean(ys); let sxy=0,sxx=0,syy=0;
+  for(let i=0;i<n;i++){ const dx=xs[i]-mx, dy=ys[i]-my; sxy+=dx*dy; sxx+=dx*dx; syy+=dy*dy; }
+  return sxx&&syy? sxy/Math.sqrt(sxx*syy) : null;
+}
+
+// Every occurrence of a habit, newest first. Timer sits count as timed meditation.
+function habitEvents(id){
+  const ev = entries.filter(e=>e.kind===id).map(e=>({t:Date.parse(e.at), sec:e.duration_sec||0, d:e.data||{}}));
+  if(id==='meditate') sits.forEach(s=>ev.push({t:Date.parse(s.started_at), sec:s.duration_sec, d:{mode:'timed'}}));
+  return ev.sort((a,b)=>b.t-a.t);
+}
+const checkins = ()=>entries.filter(e=>e.kind==='checkin').map(e=>({t:Date.parse(e.at), anxiety:e.data?.anxiety||null, happiness:e.data?.happiness||null}));
+
+async function addEntry(e){
+  e.id = uid(); e._pending = true;
+  entries.unshift(e); entries.sort((a,b)=>Date.parse(b.at)-Date.parse(a.at));
+  saveLocal(); renderToday();
+  try{ await pushEntry(e); renderRecent(); }catch{ toast('Saved locally · will sync later'); }
+}
+
+// check-in
+let ci = {anxiety:null, happiness:null};
+function renderStars(){
+  document.querySelectorAll('.stars').forEach(el=>{
+    const v = ci[el.dataset.k]||0;
+    el.innerHTML = [1,2,3,4,5].map(n=>`<button data-v="${n}" class="${n<=v?'on':''}" aria-label="${n}">★</button>`).join('');
+  });
+}
+document.querySelectorAll('.stars').forEach(el=>el.onclick = e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  const k = el.dataset.k; ci[k] = ci[k]===+b.dataset.v ? null : +b.dataset.v; renderStars();
+});
+$('#ciSave').onclick = ()=>{
+  if(!ci.anxiety && !ci.happiness) return toast('Tap some stars first');
+  const data = {}; if(ci.anxiety) data.anxiety=ci.anxiety; if(ci.happiness) data.happiness=ci.happiness;
+  ci = {anxiety:null, happiness:null};
+  addEntry({kind:'checkin', at:new Date().toISOString(), duration_sec:null, data}); toast('Checked in');
+};
+
+// log form
+let draft = null; // {kind, when, d:{field:string}}
+$('#logPick').innerHTML = HABITS.map(h=>`<button data-k="${h.id}">${h.name}</button>`).join('');
+$('#logPick').onclick = e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  draft = draft?.kind===b.dataset.k ? null : {kind:b.dataset.k, when:localInput(new Date()), d:{}};
+  renderForm();
+};
+const chipRow = (f, opts, labels={})=>`<div class="chips" data-chip="${f}">${opts.map(o=>`<button data-v="${o}" class="${draft.d[f]===o?'on':''}">${labels[o]||cap(o)}</button>`).join('')}</div>`;
+const numIn = (f, label, ph='')=>`<div><label class="small">${label}</label><input type="number" inputmode="decimal" min="0" data-f="${f}" value="${esc(draft.d[f]??'')}" placeholder="${ph}"></div>`;
+const field = (label, html)=>`<div class="field"><label class="small">${label}</label>${html}</div>`;
+function renderForm(){
+  $('#logPick').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.k===draft?.kind));
+  const box = $('#logForm'); box.classList.toggle('hidden', !draft);
+  if(!draft) return;
+  const k = draft.kind, d = draft.d, cardio = CARDIO.includes(d.type);
+  let h = '';
+  if(k==='meditate'){
+    h += field('Kind', chipRow('mode', ['timed','reflected']));
+    h += `<div class="row field">${numIn('minutes','Minutes')}</div><p class="tiny" style="margin:6px 0 0">Sits from the Sit timer are counted automatically.</p>`;
+  }
+  if(k==='exercise'){
+    h += field('Type', chipRow('type', EX_TYPES));
+    if(d.type==='other') h += `<div class="field"><input data-f="what" value="${esc(d.what??'')}" placeholder="What? (optional)"></div>`;
+    if(cardio) h += field('Style', chipRow('style', ['steady','hiit'], {steady:'Consistent', hiit:'HIIT'}));
+    if(cardio && d.style==='hiit') h += `<div class="row field">${numIn('rounds','Rounds')}${numIn('work_sec','High (sec)')}${numIn('rest_sec','Rest (sec)')}</div>`;
+    else h += `<div class="row field">${cardio && d.style==='steady' ? numIn('level','Level') : ''}${numIn('minutes','Minutes')}</div>`;
+  }
+  if(k==='walk') h += `<div class="row field">${numIn('minutes','Minutes')}${numIn('distance','Distance (mi)')}</div>`;
+  if(k==='read') h += `<div class="row field">${numIn('minutes','Minutes')}</div>`;
+  h += `<div class="field"><label class="small">When</label><input type="datetime-local" id="logWhen" value="${draft.when}"></div>`;
+  h += `<button class="btn field" id="logSave">Save ${HABIT_BY[k].name.toLowerCase()}</button>`;
+  box.innerHTML = h;
+}
+$('#logForm').onclick = e=>{
+  if(e.target.id==='logSave') return saveDraft();
+  const b = e.target.closest('[data-chip] button'); if(!b) return;
+  const f = b.closest('[data-chip]').dataset.chip;
+  draft.d[f] = draft.d[f]===b.dataset.v ? undefined : b.dataset.v;
+  renderForm();
+};
+$('#logForm').oninput = e=>{
+  if(e.target.id==='logWhen') draft.when = e.target.value;
+  else if(e.target.dataset.f) draft.d[e.target.dataset.f] = e.target.value;
+};
+function saveDraft(){
+  const k = draft.kind, d = draft.d, data = {};
+  const n = f=>{ const v = parseFloat(d[f]); return isFinite(v) && v>0 ? v : null; };
+  let sec = n('minutes') ? Math.round(n('minutes')*60) : null;
+  if(k==='meditate' && d.mode) data.mode = d.mode;
+  if(k==='exercise'){
+    if(d.type) data.type = d.type;
+    if(d.type==='other' && d.what?.trim()) data.what = d.what.trim();
+    if(CARDIO.includes(d.type) && d.style) data.style = d.style;
+    if(data.style==='hiit'){
+      ['rounds','work_sec','rest_sec'].forEach(f=>{ if(n(f)) data[f] = Math.round(n(f)); });
+      sec = data.rounds && (data.work_sec||data.rest_sec) ? data.rounds*((data.work_sec||0)+(data.rest_sec||0)) : null;
+    } else if(data.style==='steady' && n('level')) data.level = n('level');
+  }
+  if(k==='walk' && n('distance')) data.distance = n('distance');
+  let at = new Date(draft.when); if(isNaN(at)) at = new Date();
+  draft = null; renderForm();
+  addEntry({kind:k, at:at.toISOString(), duration_sec:sec, data}); toast('Logged');
+}
+
+// rendering
+function describe(e){
+  const d = e.data||{}, p = [];
+  if(e.kind==='checkin'){ if(d.anxiety) p.push(`anxiety ${d.anxiety}/5`); if(d.happiness) p.push(`happiness ${d.happiness}/5`); }
+  if(e.kind==='meditate' && d.mode) p.push(d.mode);
+  if(e.kind==='exercise'){
+    if(d.type) p.push(d.what || d.type);
+    if(d.style==='hiit') p.push(`HIIT ${d.rounds||'?'}× ${d.work_sec||'?'}s on / ${d.rest_sec||'?'}s off`);
+    if(d.style==='steady') p.push('consistent' + (d.level ? ` · level ${d.level}` : ''));
+  }
+  if(e.duration_sec) p.push(`${Math.round(e.duration_sec/60)} min`);
+  if(d.distance) p.push(`${d.distance} mi`);
+  return p.join(' · ');
+}
+function renderRecent(){
+  const rows = entries.slice(0,12);
+  $('#recent').innerHTML = rows.length ? rows.map(e=>{
+    const d = new Date(e.at);
+    return `<div class="sit"><div class="top"><b>${e.kind==='checkin'?'Check-in':HABIT_BY[e.kind]?.name||e.kind}</b><span class="muted">${d.toLocaleDateString(undefined,{month:'short',day:'numeric'})} ${d.toLocaleTimeString(undefined,{hour:'numeric',minute:'2-digit'})}${e._pending?' ⏳':''}</span></div>
+      ${describe(e)?`<div class="meta">${esc(describe(e))}</div>`:''}<button class="del" data-id="${e.id}">delete</button></div>`;
+  }).join('') : '<p class="muted" style="margin:0">Check in or log something to get started.</p>';
+}
+$('#recent').onclick = async e=>{
+  const b = e.target.closest('.del'); if(!b || !confirm('Delete this entry?')) return;
+  const id = b.dataset.id; entries = entries.filter(x=>x.id!==id); saveLocal(); renderToday();
+  try{ await sb(`entries?id=eq.${id}`,{method:'DELETE',prefer:'return=minimal'}); }
+  catch{ const d=JSON.parse(localStorage.getItem(lsKey('deletedEntries'))||'[]'); d.push(id); localStorage.setItem(lsKey('deletedEntries'),JSON.stringify(d)); }
+};
+
+// Calendar heatmap: one column per week (Mon at top), shade by how many times that day.
+function heatmap(ev, color, cols){
+  const P = 12, byDay = {};
+  ev.forEach(x=>{ const k=dayKey(x.t); (byDay[k] ||= {n:0,sec:0}); byDay[k].n++; byDay[k].sec+=x.sec; });
+  const today = new Date(); today.setHours(0,0,0,0);
+  const start = new Date(today); start.setDate(start.getDate()-(today.getDay()+6)%7-(cols-1)*7);
+  let out = '';
+  for(let c=0;c<cols;c++) for(let r=0;r<7;r++){
+    const d = new Date(start); d.setDate(start.getDate()+c*7+r);
+    if(d>today) continue;
+    const k = dayKey(d), v = byDay[k];
+    const tip = `${d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric'})}${v?`: ${v.n}×${v.sec?` · ${Math.round(v.sec/60)} min`:''}`:''}`;
+    out += `<rect x="${c*P}" y="${r*P}" width="${P-2}" height="${P-2}" rx="2" fill="${v?color:'#26312c'}" fill-opacity="${v?[0,.45,.75,1][Math.min(3,v.n)]:1}"${+d===+today?' stroke="#e6e9e4" stroke-width="1"':''}><title>${tip}</title></rect>`;
+  }
+  return `<svg class="heat" width="${cols*P-2}" height="${7*P-2}">${out}</svg>`;
+}
+// Time of day, last 60 days: one tick per occurrence.
+function todStrip(ev, color){
+  const since = Date.now()-60*DAY;
+  const ticks = ev.filter(x=>x.t>since).map(x=>{ const d=new Date(x.t); return `<rect x="${(d.getHours()+d.getMinutes()/60)/24*240-.75}" y="1" width="1.5" height="14" fill="${color}" fill-opacity=".6"/>`; }).join('');
+  return `<svg class="tod" viewBox="0 0 240 16" preserveAspectRatio="none"><rect x="0" y="7.5" width="240" height="1" fill="#26312c"/>${[60,120,180].map(x=>`<rect x="${x-.5}" y="3" width="1" height="10" fill="#26312c"/>`).join('')}${ticks}</svg>
+    <div class="todlab"><span>12a</span><span>6a</span><span>12p</span><span>6p</span><span>12a</span></div>`;
+}
+function breakdown(id, ev30){
+  const c = {};
+  const key = id==='meditate' ? x=>x.d.mode : id==='exercise' ? x=>x.d.what||x.d.type : ()=>null;
+  ev30.forEach(x=>{ const k=key(x); if(k) c[k]=(c[k]||0)+1; });
+  return Object.entries(c).sort((a,b)=>b[1]-a[1]).map(([k,n])=>`${k} ${n}`).join(' · ');
+}
+function renderHabitCards(){
+  const width = $('#habitCards').clientWidth || 488;
+  const cols = Math.max(8, Math.min(26, Math.floor((width-32+2)/12)));
+  $('#habitCards').innerHTML = HABITS.map(h=>{
+    const ev = habitEvents(h.id), ev30 = ev.filter(x=>Date.now()-x.t<30*DAY);
+    const days30 = new Set(ev30.map(x=>dayKey(x.t))).size;
+    const {cur} = streakOf(new Set(ev.map(x=>dayKey(x.t))));
+    const mins = Math.round(ev30.reduce((a,x)=>a+x.sec,0)/60);
+    const bd = breakdown(h.id, ev30);
+    return `<div class="card habit">
+      <div class="hhead"><b style="color:${h.color}">${h.name}</b><span class="tiny">${days30}/30 days${cur?` · ${cur}d streak`:''}${mins?` · ${mins>=120?Math.round(mins/6)/10+'h':mins+' min'}`:''}</span></div>
+      ${heatmap(ev, h.color, cols)}
+      ${todStrip(ev, h.color)}
+      ${bd?`<div class="tiny" style="margin-top:6px">30d: ${esc(bd)}</div>`:''}
+    </div>`;
+  }).join('');
+}
+function renderToday(){
+  if(!user) return;
+  renderStars(); renderForm(); renderHabitCards(); renderRecent();
+  const last = checkins()[0];
+  if(last){ const h = (Date.now()-last.t)/3600000;
+    $('#lastCheckin').textContent = `· last ${h<1?'under an hour':h<36?Math.round(h)+'h':Math.round(h/24)+' days'} ago`; }
+  else $('#lastCheckin').textContent = '';
+}
+let resizeT; window.addEventListener('resize',()=>{ clearTimeout(resizeT); resizeT=setTimeout(()=>{ if(user) renderHabitCards(); },200); });
+
+// ---------- trends ----------
+const MIN_CHECKINS = 10;
+function renderTrends(){
+  if(!user) return;
+  const cis = checkins();
+
+  // daily average check-in line
+  const byDay = {};
+  cis.filter(c=>Date.now()-c.t<60*DAY).forEach(c=>{ const k=dayKey(c.t); (byDay[k] ||= {a:[],h:[]}); if(c.anxiety) byDay[k].a.push(c.anxiety); if(c.happiness) byDay[k].h.push(c.happiness); });
+  const y = v=>85-(v-1)/4*78;
+  const series = (f, color)=>{
+    const pts = [];
+    for(let i=59;i>=0;i--){ const d=new Date(); d.setDate(d.getDate()-i); const v=byDay[dayKey(d)]; const m=v&&mean(v[f]); if(m) pts.push([(59-i)/59*290+5, y(m)]); }
+    return pts.length ? `<polyline fill="none" stroke="${color}" stroke-width="2" vector-effect="non-scaling-stroke" points="${pts.map(p=>p.join(',')).join(' ')}"/>` : '';
+  };
+  $('#ciLine').innerHTML = [1,2,3,4,5].map(n=>`<line x1="0" x2="300" y1="${y(n)}" y2="${y(n)}" stroke="#26312c" stroke-width="1" vector-effect="non-scaling-stroke"/>`).join('') + series('a','#d98b7a') + series('h','#9fc7a3');
+  $('#ciCount').textContent = `${cis.length} check-ins`;
+
+  // days per week, with that week's average check-in
+  const monday = new Date(); monday.setHours(0,0,0,0); monday.setDate(monday.getDate()-(monday.getDay()+6)%7);
+  const evs = Object.fromEntries(HABITS.map(h=>[h.id, habitEvents(h.id)]));
+  let rows = '';
+  for(let w=0;w<8;w++){
+    const s = new Date(monday); s.setDate(s.getDate()-7*w); const e = new Date(s); e.setDate(e.getDate()+7);
+    const inWk = t=>t>=+s && t<+e;
+    const wc = cis.filter(c=>inWk(c.t));
+    const avg = f=>{ const m=mean(wc.map(c=>c[f]).filter(Boolean)); return m?m.toFixed(1):'–'; };
+    rows += `<tr><td>${s.toLocaleDateString(undefined,{month:'short',day:'numeric'})}</td>${HABITS.map(h=>`<td>${new Set(evs[h.id].filter(x=>inWk(x.t)).map(x=>dayKey(x.t))).size||'·'}</td>`).join('')}<td>${avg('anxiety')}</td><td>${avg('happiness')}</td></tr>`;
+  }
+  $('#weekly').innerHTML = `<table class="grid"><tr><th>Week</th>${HABITS.map(h=>`<th style="color:${h.color}">${h.name.slice(0,4)}</th>`).join('')}<th>Anx</th><th>Hap</th></tr>${rows}</table>`;
+
+  // correlations
+  const rated = f=>cis.filter(c=>c[f]).length;
+  const n = Math.max(rated('anxiety'), rated('happiness'));
+  if(Math.max(rated('anxiety'), rated('happiness')) < MIN_CHECKINS){
+    $('#corr').innerHTML = `<p class="muted" style="margin:0">Needs at least ${MIN_CHECKINS} check-ins — ${MIN_CHECKINS-Math.max(rated('anxiety'),rated('happiness'))} to go. Check in on days you do things and days you don't.</p>`;
+    return;
+  }
+  const cell = (f, h)=>{
+    const ev = evs[h.id].map(x=>x.t);
+    const rs = cis.filter(c=>c[f]).map(c=>({v:c[f],
+      recent: ev.some(t=>t<=c.t && t>c.t-DAY),
+      days: new Set(ev.filter(t=>t<=c.t && t>c.t-7*DAY).map(t=>dayKey(t))).size}));
+    if(rs.length<MIN_CHECKINS) return `<td class="weak">–</td>`;
+    const w = rs.filter(r=>r.recent).map(r=>r.v), wo = rs.filter(r=>!r.recent).map(r=>r.v);
+    const diff = w.length>=3 && wo.length>=3 ? mean(w)-mean(wo) : null;
+    const r = pearson(rs.map(x=>x.days), rs.map(x=>x.v));
+    // rough 95% thresholds: Welch t ≥ 2 for the difference, |r| ≥ 2/√n for r
+    const vr = a=>{ const m=mean(a); return a.reduce((s,x)=>s+(x-m)**2,0)/(a.length-1); };
+    const se = diff===null ? 0 : Math.sqrt(vr(w)/w.length + vr(wo)/wo.length);
+    const diffSolid = diff!==null && (se ? Math.abs(diff)/se >= 2 : Math.abs(diff) > 0);
+    const rSolid = r!==null && Math.abs(r) >= 2/Math.sqrt(rs.length);
+    const good = diff===null ? null : (f==='happiness' ? diff>0 : diff<0);
+    const sign = (x, dp)=>(x>0?'+':'')+x.toFixed(dp).replace(/^([+-]?)0\./,'$1.');
+    return `<td><b class="${diffSolid?'':'weak'}" style="color:${good===null||!diffSolid?'inherit':good?'var(--accent)':'var(--danger)'}">${diff===null?'–':sign(diff,1)}</b><small class="${rSolid?'':'weak'}">${r===null?'r –':'r '+sign(r,2)}</small></td>`;
+  };
+  $('#corr').innerHTML = `<table class="grid corr"><tr><th></th><th>Happiness</th><th>Anxiety</th></tr>
+    ${HABITS.map(h=>`<tr><td style="color:${h.color}">${h.name}</td>${cell('happiness',h)}${cell('anxiety',h)}</tr>`).join('')}</table>
+    <p class="tiny" style="margin:10px 0 0">Big number: average rating at check-ins within 24h <i>after</i> doing it, minus the average otherwise (green = better, red = worse). <b>r</b>: how ratings track with the number of the previous 7 days you did it, from −1 to +1. Faded = could easily be chance at ${n} check-ins. It shows what goes together, not what causes what.</p>`;
+}
 
 let toastT; function toast(m){ const t=$('#toast'); t.textContent=m; t.classList.add('on'); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove('on'),1800); }
 

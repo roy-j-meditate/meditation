@@ -32,3 +32,19 @@ create policy "anon all sits" on sits for all to anon using (true) with check (t
 
 -- lifetime totals from before this app (added to stats)
 alter table profiles add column if not exists prior_sits int not null default 0, add column if not exists prior_minutes int not null default 0;
+
+-- habits + check-ins. kind: meditate | exercise | walk | read | checkin
+-- data holds the optional details (mode, type, style, level, rounds, work_sec, rest_sec, distance, anxiety, happiness, ...)
+create table if not exists entries (
+  id uuid primary key,
+  username text not null references profiles(username) on delete cascade,
+  kind text not null,
+  at timestamptz not null,
+  duration_sec int,
+  data jsonb not null default '{}',
+  created_at timestamptz not null default now()
+);
+create index if not exists entries_user_at on entries (username, at desc);
+alter table entries enable row level security;
+drop policy if exists "anon all entries" on entries;
+create policy "anon all entries" on entries for all to anon using (true) with check (true);
